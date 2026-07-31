@@ -1,9 +1,9 @@
 import type { TaskPriority } from "@/lib/types";
 
 const STYLES: Record<TaskPriority, string> = {
-  low: "bg-slate-100 text-slate-600",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-red-100 text-red-700",
+  low: "bg-slate-100 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
+  high: "bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300",
 };
 
 const LABELS: Record<TaskPriority, string> = {

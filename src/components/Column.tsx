@@ -53,7 +53,7 @@ export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: C
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg bg-slate-100 p-3 ${
+      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg bg-slate-100 p-3 dark:bg-white/5 ${
         isDragging ? "opacity-50" : ""
       }`}
     >
@@ -66,7 +66,7 @@ export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: C
             onBlur={commitTitle}
             onKeyDown={onTitleKeyDown}
             onClick={(e) => e.stopPropagation()}
-            className="w-full rounded border-0 bg-white px-1.5 py-0.5 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-indigo-300 focus:outline-none"
+            className="w-full rounded border-0 bg-white px-1.5 py-0.5 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-indigo-300 focus:outline-none dark:bg-white/10 dark:text-white dark:ring-indigo-400"
           />
         ) : (
           <h3
@@ -74,11 +74,11 @@ export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: C
               e.stopPropagation();
               setIsEditingTitle(true);
             }}
-            className="cursor-text truncate text-sm font-semibold text-slate-700"
+            className="cursor-text truncate text-sm font-semibold text-slate-700 dark:text-slate-200"
             title="Click to rename"
           >
             {column.title}{" "}
-            <span className="font-normal text-slate-400">({column.tasks.length})</span>
+            <span className="font-normal text-slate-400 dark:text-slate-500">({column.tasks.length})</span>
           </h3>
         )}
         <button
@@ -87,7 +87,7 @@ export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: C
             onDelete();
           }}
           aria-label={`Delete ${column.title} column`}
-          className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-red-600"
+          className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-red-600 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-red-400"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -105,7 +105,7 @@ export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: C
 
       <button
         onClick={onAddTask}
-        className="flex items-center justify-center gap-1 rounded-md py-1.5 text-sm text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+        className="flex items-center justify-center gap-1 rounded-md py-1.5 text-sm text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
       >
         + Add task
       </button>

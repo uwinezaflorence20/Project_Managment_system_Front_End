@@ -15,21 +15,26 @@ interface TaskDialogProps {
   open: boolean;
   onClose: () => void;
   task?: Task | null;
+  assigneeOptions: { id: string; name: string }[];
   onSubmit: (input: {
     title: string;
     description?: string;
     priority?: TaskPriority;
     dueDate?: string;
+    assigneeIds?: string[];
   }) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
 
-export function TaskDialog({ open, onClose, task, onSubmit, onDelete }: TaskDialogProps) {
+export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onDelete }: TaskDialogProps) {
   const isEditing = Boolean(task);
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "medium");
   const [dueDate, setDueDate] = useState(task?.dueDate ? task.dueDate.slice(0, 10) : "");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(
+    task?.assignees?.map((a) => a.userId) ?? [],
+  );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,8 +45,13 @@ export function TaskDialog({ open, onClose, task, onSubmit, onDelete }: TaskDial
     setDescription(task?.description ?? "");
     setPriority(task?.priority ?? "medium");
     setDueDate(task?.dueDate ? task.dueDate.slice(0, 10) : "");
+    setAssigneeIds(task?.assignees?.map((a) => a.userId) ?? []);
     setFieldErrors({});
     setFormError(null);
+  }
+
+  function toggleAssignee(id: string, checked: boolean) {
+    setAssigneeIds((prev) => (checked ? [...prev, id] : prev.filter((existing) => existing !== id)));
   }
 
   function handleClose() {
@@ -56,6 +66,7 @@ export function TaskDialog({ open, onClose, task, onSubmit, onDelete }: TaskDial
       description: description || undefined,
       priority,
       dueDate: dueDate || undefined,
+      assigneeIds,
     });
     if (!parsed.success) {
       const errors: Record<string, string> = {};
@@ -91,7 +102,7 @@ export function TaskDialog({ open, onClose, task, onSubmit, onDelete }: TaskDial
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title={isEditing ? "Edit task" : "New task"}>
+    <Modal open={open} onClose={handleClose} title={isEditing ? "Edit task" : "Add task"}>
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <ErrorBanner message={formError} />
         <Input
@@ -125,10 +136,35 @@ export function TaskDialog({ open, onClose, task, onSubmit, onDelete }: TaskDial
           <Input
             id="task-due-date"
             type="date"
-            label="Due date (optional)"
+            label="Deadline (optional)"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
           />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Assignees</label>
+          <div className="flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-md bg-white px-2 py-1.5 shadow-sm ring-1 ring-inset ring-slate-300 dark:bg-white/5 dark:ring-white/10">
+            {assigneeOptions.length === 0 ? (
+              <p className="px-1 py-1 text-sm text-slate-400 dark:text-slate-500">
+                No project members yet.
+              </p>
+            ) : (
+              assigneeOptions.map((option) => (
+                <label
+                  key={option.id}
+                  className="flex items-center gap-2 rounded px-1 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/10"
+                >
+                  <input
+                    type="checkbox"
+                    checked={assigneeIds.includes(option.id)}
+                    onChange={(e) => toggleAssignee(option.id, e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-white/20 dark:accent-indigo-400"
+                  />
+                  {option.name}
+                </label>
+              ))
+            )}
+          </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
           {isEditing && onDelete ? (
@@ -143,7 +179,7 @@ export function TaskDialog({ open, onClose, task, onSubmit, onDelete }: TaskDial
               Cancel
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              {isEditing ? "Save changes" : "Add task"}
+              {isEditing ? "Save changes" : "Publish"}
             </Button>
           </div>
         </div>

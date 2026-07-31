@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/Button";
 export default function Error({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-center">
-      <p className="text-sm font-medium text-slate-700">Something went wrong loading this board.</p>
-      <p className="max-w-xs text-sm text-slate-500">{error.message}</p>
+      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        Something went wrong loading this board.
+      </p>
+      <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">{error.message}</p>
       <div className="flex gap-2">
         <Button onClick={reset} variant="secondary">
           Try again

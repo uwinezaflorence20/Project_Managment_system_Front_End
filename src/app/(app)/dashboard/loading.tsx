@@ -1,25 +1,16 @@
 export default function Loading() {
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="h-7 w-56 animate-pulse rounded bg-slate-200" />
-          <div className="h-4 w-72 animate-pulse rounded bg-slate-100" />
-        </div>
-        <div className="h-9 w-28 animate-pulse rounded-md bg-slate-200" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="flex flex-1 flex-col gap-6">
+      <div className="h-8 w-64 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
+      <div className="flex flex-1 gap-4 overflow-x-auto pb-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-20 animate-pulse rounded-lg bg-white shadow-sm ring-1 ring-slate-200" />
+          <div key={i} className="flex w-72 shrink-0 flex-col gap-3 rounded-lg bg-slate-100 p-3 dark:bg-white/5">
+            <div className="h-5 w-24 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
+            {Array.from({ length: 3 }).map((__, j) => (
+              <div key={j} className="h-20 animate-pulse rounded-md bg-white shadow-sm dark:bg-white/5" />
+            ))}
+          </div>
         ))}
-      </div>
-      <div className="flex flex-col gap-4">
-        <div className="h-6 w-40 animate-pulse rounded bg-slate-200" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-lg bg-white shadow-sm ring-1 ring-slate-200" />
-          ))}
-        </div>
       </div>
     </div>
   );

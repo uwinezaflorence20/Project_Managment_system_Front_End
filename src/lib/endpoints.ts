@@ -1,12 +1,17 @@
 import { apiFetch } from "./api";
-import type { Board, BoardColumn, DashboardStats, Task } from "./types";
+import type {
+  AdminBoardSummary,
+  AdminStats,
+  Board,
+  BoardColumn,
+  Notification,
+  Task,
+  User,
+  UserRole,
+} from "./types";
 
 export function listBoards() {
   return apiFetch<Board[]>("/boards");
-}
-
-export function getDashboard() {
-  return apiFetch<DashboardStats>("/dashboard");
 }
 
 export function getBoard(boardId: string) {
@@ -23,6 +28,14 @@ export function updateBoard(boardId: string, input: { title?: string; descriptio
 
 export function deleteBoard(boardId: string) {
   return apiFetch<void>(`/boards/${boardId}`, { method: "DELETE" });
+}
+
+export function addBoardMember(boardId: string, email: string) {
+  return apiFetch<Board>(`/boards/${boardId}/members`, { method: "POST", body: { email } });
+}
+
+export function removeBoardMember(boardId: string, userId: string) {
+  return apiFetch<Board>(`/boards/${boardId}/members/${userId}`, { method: "DELETE" });
 }
 
 export function createColumn(boardId: string, input: { title: string }) {
@@ -50,7 +63,13 @@ export function deleteColumn(boardId: string, columnId: string) {
 export function createTask(
   boardId: string,
   columnId: string,
-  input: { title: string; description?: string; priority?: string; dueDate?: string },
+  input: {
+    title: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string;
+    assigneeIds?: string[];
+  },
 ) {
   return apiFetch<Task>(`/boards/${boardId}/columns/${columnId}/tasks`, {
     method: "POST",
@@ -60,7 +79,13 @@ export function createTask(
 
 export function updateTask(
   taskId: string,
-  input: { title?: string; description?: string; priority?: string; dueDate?: string },
+  input: {
+    title?: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string;
+    assigneeIds?: string[];
+  },
 ) {
   return apiFetch<Task>(`/tasks/${taskId}`, { method: "PATCH", body: input });
 }
@@ -74,4 +99,48 @@ export function moveTask(taskId: string, targetColumnId: string, targetIndex: nu
 
 export function deleteTask(taskId: string) {
   return apiFetch<void>(`/tasks/${taskId}`, { method: "DELETE" });
+}
+
+export function updateProfile(input: { name: string; email: string }) {
+  return apiFetch<User>("/users/profile", { method: "PATCH", body: input });
+}
+
+export function changePassword(input: { currentPassword: string; newPassword: string }) {
+  return apiFetch<void>("/users/change-password", { method: "PATCH", body: input });
+}
+
+export function adminGetStats() {
+  return apiFetch<AdminStats>("/admin/stats");
+}
+
+export function adminListUsers() {
+  return apiFetch<User[]>("/admin/users");
+}
+
+export function adminUpdateUserRole(userId: string, role: UserRole) {
+  return apiFetch<User>(`/admin/users/${userId}/role`, { method: "PATCH", body: { role } });
+}
+
+export function adminDeleteUser(userId: string) {
+  return apiFetch<void>(`/admin/users/${userId}`, { method: "DELETE" });
+}
+
+export function adminListBoards() {
+  return apiFetch<AdminBoardSummary[]>("/admin/boards");
+}
+
+export function adminDeleteBoard(boardId: string) {
+  return apiFetch<void>(`/admin/boards/${boardId}`, { method: "DELETE" });
+}
+
+export function listNotifications() {
+  return apiFetch<Notification[]>("/notifications");
+}
+
+export function markNotificationRead(notificationId: string) {
+  return apiFetch<Notification>(`/notifications/${notificationId}/read`, { method: "PATCH" });
+}
+
+export function markAllNotificationsRead() {
+  return apiFetch<void>("/notifications/read-all", { method: "PATCH" });
 }

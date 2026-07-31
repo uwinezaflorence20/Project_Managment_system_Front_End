@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
@@ -9,7 +10,16 @@ html {
   color-scheme: light;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   background: #f8fafc;
   color: #0f172a;
+}
+
+.dark body {
+  background: #0a0918;
+  color: #ffffff;
 }

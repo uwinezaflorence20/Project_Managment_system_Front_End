@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -19,7 +20,10 @@ import {
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import type { Board, BoardColumn, Task, TaskPriority } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
+import { useSearch } from "@/lib/search-context";
+import { useSocket } from "@/lib/socket-context";
+import type { Board, BoardColumn, BoardMember, Task, TaskPriority } from "@/lib/types";
 import {
   createColumn,
   createTask,
@@ -34,6 +38,7 @@ import { ApiError } from "@/lib/api-error";
 import { Column } from "@/components/Column";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskDialog } from "@/components/TaskDialog";
+import { BoardMembersDialog } from "@/components/BoardMembersDialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 interface TaskDialogState {
@@ -51,23 +56,131 @@ function findColumnById(columns: BoardColumn[], columnId: string) {
 }
 
 export function KanbanBoard({ board }: { board: Board }) {
+  const { user } = useAuth();
+  const { query } = useSearch();
+  const socket = useSocket();
+  const router = useRouter();
+  const isAdmin = user?.role === "admin";
   const [columns, setColumns] = useState<BoardColumn[]>(board.columns ?? []);
+  const [members, setMembers] = useState<BoardMember[]>(board.members ?? []);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [isSavingColumn, setIsSavingColumn] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [taskDialog, setTaskDialog] = useState<TaskDialogState>({
     open: false,
     columnId: null,
     task: null,
   });
 
+  const assigneeOptions = [
+    ...(board.owner ? [{ id: board.owner.id, name: `${board.owner.name} (owner)` }] : []),
+    ...members.map((m) => ({
+      id: m.userId,
+      name: m.userId === user?.id ? `${m.user.name} (you)` : m.user.name,
+    })),
+  ];
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  // Live collaboration: join this board's room so CRUD/drag actions made by
+  // other clients (or other tabs) apply to this view without a refresh.
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.emit("joinBoard", board.id);
+
+    function onColumnCreated(column: Omit<BoardColumn, "tasks">) {
+      setColumns((prev) =>
+        prev.some((c) => c.id === column.id) ? prev : [...prev, { ...column, tasks: [] }],
+      );
+    }
+    function onColumnUpdated(column: Omit<BoardColumn, "tasks">) {
+      setColumns((prev) => prev.map((c) => (c.id === column.id ? { ...c, ...column } : c)));
+    }
+    function onColumnDeleted({ columnId }: { columnId: string }) {
+      setColumns((prev) => prev.filter((c) => c.id !== columnId));
+    }
+    function onColumnsReordered(ordered: Omit<BoardColumn, "tasks">[]) {
+      setColumns((prev) => {
+        const byId = new Map(prev.map((c) => [c.id, c]));
+        return ordered
+          .map((c) => byId.get(c.id))
+          .filter((c): c is BoardColumn => Boolean(c))
+          .sort((a, b) => a.order - b.order);
+      });
+    }
+    function onTaskCreated(task: Task) {
+      setColumns((prev) =>
+        prev.map((c) =>
+          c.id === task.columnId && !c.tasks.some((t) => t.id === task.id)
+            ? { ...c, tasks: [...c.tasks, task] }
+            : c,
+        ),
+      );
+    }
+    function onTaskUpdated(task: Task) {
+      setColumns((prev) =>
+        prev.map((c) => ({
+          ...c,
+          tasks:
+            c.id === task.columnId
+              ? c.tasks.some((t) => t.id === task.id)
+                ? c.tasks.map((t) => (t.id === task.id ? task : t))
+                : [...c.tasks, task]
+              : c.tasks.filter((t) => t.id !== task.id),
+        })),
+      );
+    }
+    function onTaskDeleted({ taskId }: { taskId: string; columnId: string }) {
+      setColumns((prev) => prev.map((c) => ({ ...c, tasks: c.tasks.filter((t) => t.id !== taskId) })));
+    }
+    function onBoardSync(synced: Board) {
+      setColumns(synced.columns ?? []);
+    }
+    function onBoardDeleted() {
+      router.push("/boards");
+    }
+    function onMemberAdded(synced: Board) {
+      setMembers(synced.members ?? []);
+    }
+    function onMemberRemoved({ userId }: { boardId: string; userId: string }) {
+      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+    }
+
+    socket.on("column:created", onColumnCreated);
+    socket.on("column:updated", onColumnUpdated);
+    socket.on("column:deleted", onColumnDeleted);
+    socket.on("columns:reordered", onColumnsReordered);
+    socket.on("task:created", onTaskCreated);
+    socket.on("task:updated", onTaskUpdated);
+    socket.on("task:deleted", onTaskDeleted);
+    socket.on("board:sync", onBoardSync);
+    socket.on("board:deleted", onBoardDeleted);
+    socket.on("board:member-added", onMemberAdded);
+    socket.on("board:member-removed", onMemberRemoved);
+
+    return () => {
+      socket.emit("leaveBoard", board.id);
+      socket.off("column:created", onColumnCreated);
+      socket.off("column:updated", onColumnUpdated);
+      socket.off("column:deleted", onColumnDeleted);
+      socket.off("columns:reordered", onColumnsReordered);
+      socket.off("task:created", onTaskCreated);
+      socket.off("task:updated", onTaskUpdated);
+      socket.off("task:deleted", onTaskDeleted);
+      socket.off("board:sync", onBoardSync);
+      socket.off("board:deleted", onBoardDeleted);
+      socket.off("board:member-added", onMemberAdded);
+      socket.off("board:member-removed", onMemberRemoved);
+    };
+  }, [socket, board.id, router]);
 
   function onDragStart(event: DragStartEvent) {
     const { active } = event;
@@ -205,6 +318,7 @@ export function KanbanBoard({ board }: { board: Board }) {
     description?: string;
     priority?: TaskPriority;
     dueDate?: string;
+    assigneeIds?: string[];
   }) {
     if (taskDialog.task) {
       const updated = await updateTask(taskDialog.task.id, input);
@@ -235,14 +349,46 @@ export function KanbanBoard({ board }: { board: Board }) {
     : null;
   const activeColumn = activeColumnId ? columns.find((c) => c.id === activeColumnId) : null;
 
+  const visibleColumns = query.trim()
+    ? columns.map((c) => ({
+        ...c,
+        tasks: c.tasks.filter((t) => t.title.toLowerCase().includes(query.trim().toLowerCase())),
+      }))
+    : columns;
+
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <Link href="/boards" className="w-fit text-sm text-slate-500 hover:text-slate-700">
-          ← Back to boards
-        </Link>
-        <h1 className="text-2xl font-bold text-slate-900">{board.title}</h1>
-        {board.description && <p className="text-sm text-slate-500">{board.description}</p>}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <Link
+            href="/boards"
+            className="w-fit text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            ← Back to boards
+          </Link>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{board.title}</h1>
+          {board.description && (
+            <p className="text-sm text-slate-500 dark:text-slate-400">{board.description}</p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => setIsMembersOpen(true)}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/10 dark:hover:bg-white/5"
+            >
+              Members
+            </button>
+          )}
+          {columns.length > 0 && (
+            <button
+              onClick={() => setTaskDialog({ open: true, columnId: columns[0].id, task: null })}
+              className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            >
+              + Add task
+            </button>
+          )}
+        </div>
       </div>
 
       <ErrorBanner message={error} />
@@ -254,8 +400,8 @@ export function KanbanBoard({ board }: { board: Board }) {
         onDragEnd={onDragEnd}
       >
         <div className="flex flex-1 items-start gap-4 overflow-x-auto pb-4">
-          <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
-            {columns.map((column) => (
+          <SortableContext items={visibleColumns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+            {visibleColumns.map((column) => (
               <Column
                 key={column.id}
                 column={column}
@@ -269,7 +415,7 @@ export function KanbanBoard({ board }: { board: Board }) {
 
           <div className="w-72 shrink-0">
             {isAddingColumn ? (
-              <div className="flex flex-col gap-2 rounded-lg bg-slate-100 p-3">
+              <div className="flex flex-col gap-2 rounded-lg bg-slate-100 p-3 dark:bg-white/5">
                 <input
                   autoFocus
                   value={newColumnTitle}
@@ -282,7 +428,7 @@ export function KanbanBoard({ board }: { board: Board }) {
                     }
                   }}
                   placeholder="Column title"
-                  className="rounded-md border-0 px-2 py-1.5 text-sm shadow-sm ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="rounded-md border-0 bg-white px-2 py-1.5 text-sm shadow-sm ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:bg-white/5 dark:text-white dark:ring-white/10 dark:focus:ring-indigo-400"
                 />
                 <div className="flex gap-2">
                   <button
@@ -297,7 +443,7 @@ export function KanbanBoard({ board }: { board: Board }) {
                       setIsAddingColumn(false);
                       setNewColumnTitle("");
                     }}
-                    className="rounded-md px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-200"
+                    className="rounded-md px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/10"
                   >
                     Cancel
                   </button>
@@ -306,7 +452,7 @@ export function KanbanBoard({ board }: { board: Board }) {
             ) : (
               <button
                 onClick={() => setIsAddingColumn(true)}
-                className="w-full rounded-lg border-2 border-dashed border-slate-200 py-3 text-sm text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                className="w-full rounded-lg border-2 border-dashed border-slate-200 py-3 text-sm text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 dark:border-white/10 dark:text-slate-400 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-slate-200"
               >
                 + Add column
               </button>
@@ -317,8 +463,8 @@ export function KanbanBoard({ board }: { board: Board }) {
         <DragOverlay>
           {activeTask && <TaskCard task={activeTask} onClick={() => {}} dragOverlay />}
           {activeColumn && (
-            <div className="w-72 rounded-lg bg-slate-200 p-3 shadow-lg">
-              <h3 className="text-sm font-semibold text-slate-700">{activeColumn.title}</h3>
+            <div className="w-72 rounded-lg bg-slate-200 p-3 shadow-lg dark:bg-white/10">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{activeColumn.title}</h3>
             </div>
           )}
         </DragOverlay>
@@ -327,10 +473,21 @@ export function KanbanBoard({ board }: { board: Board }) {
       <TaskDialog
         open={taskDialog.open}
         task={taskDialog.task}
+        assigneeOptions={assigneeOptions}
         onClose={() => setTaskDialog({ open: false, columnId: null, task: null })}
         onSubmit={handleTaskSubmit}
         onDelete={taskDialog.task ? handleTaskDelete : undefined}
       />
+
+      {isAdmin && (
+        <BoardMembersDialog
+          open={isMembersOpen}
+          onClose={() => setIsMembersOpen(false)}
+          board={board}
+          members={members}
+          onMembersChange={setMembers}
+        />
+      )}
     </div>
   );
 }

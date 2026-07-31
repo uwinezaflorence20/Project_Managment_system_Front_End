@@ -1,9 +1,11 @@
 export const TOKEN_COOKIE = "pm_token";
 const MAX_AGE_SECONDS = 60 * 60 * 24; // 1 day, matches backend JWT_EXPIRES_IN default
+const REMEMBER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days, when "Remember me" is checked
 
-export function setTokenCookie(token: string) {
+export function setTokenCookie(token: string, remember = false) {
   if (typeof document === "undefined") return;
-  document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${MAX_AGE_SECONDS}; samesite=lax`;
+  const maxAge = remember ? REMEMBER_MAX_AGE_SECONDS : MAX_AGE_SECONDS;
+  document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${maxAge}; samesite=lax`;
 }
 
 export function clearTokenCookie() {
