@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
-import type { Board, User } from "@/lib/types";
-import { boardSchema } from "@/lib/validation";
-import { createBoard, updateBoard, adminListUsers, addBoardMember } from "@/lib/endpoints";
+import type { Board } from "@/lib/types";
+import { boardSchema, addMemberSchema } from "@/lib/validation";
+import { createBoard, updateBoard, addBoardMember } from "@/lib/endpoints";
 import { ApiError } from "@/lib/api-error";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
@@ -24,8 +24,9 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
   const isEditing = Boolean(board);
   const [title, setTitle] = useState(board?.title ?? "");
   const [description, setDescription] = useState(board?.description ?? "");
-  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [memberEmails, setMemberEmails] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,21 +35,43 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
     if (open) {
       setTitle(board?.title ?? "");
       setDescription(board?.description ?? "");
-      setMemberIds([]);
+      setMemberEmails([]);
+      setEmailInput("");
+      setEmailError(undefined);
       setFieldErrors({});
       setFormError(null);
     }
   }, [open, board]);
 
-  useEffect(() => {
-    if (!open || isEditing) return;
-    adminListUsers()
-      .then((users) => setAvailableUsers(users.filter((u) => u.id !== user?.id)))
-      .catch(() => setAvailableUsers([]));
-  }, [open, isEditing, user?.id]);
+  function addEmail() {
+    const parsed = addMemberSchema.safeParse({ email: emailInput });
+    if (!parsed.success) {
+      setEmailError(parsed.error.issues[0]?.message);
+      return;
+    }
+    const email = parsed.data.email;
+    if (email === user?.email) {
+      setEmailError("You're already the owner.");
+      return;
+    }
+    if (memberEmails.includes(email)) {
+      setEmailError("Already added.");
+      return;
+    }
+    setMemberEmails((prev) => [...prev, email]);
+    setEmailInput("");
+    setEmailError(undefined);
+  }
 
-  function toggleMember(id: string, checked: boolean) {
-    setMemberIds((prev) => (checked ? [...prev, id] : prev.filter((existing) => existing !== id)));
+  function removeEmail(email: string) {
+    setMemberEmails((prev) => prev.filter((e) => e !== email));
+  }
+
+  function onEmailKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addEmail();
+    }
   }
 
   function reset() {
@@ -73,15 +96,13 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
         ? await updateBoard(board.id, parsed.data)
         : await createBoard(parsed.data);
 
-      if (!isEditing && memberIds.length > 0) {
+      if (!isEditing && memberEmails.length > 0) {
         const failed: string[] = [];
-        for (const id of memberIds) {
-          const member = availableUsers.find((u) => u.id === id);
-          if (!member) continue;
+        for (const email of memberEmails) {
           try {
-            saved = await addBoardMember(saved.id, member.email);
+            saved = await addBoardMember(saved.id, email);
           } catch {
-            failed.push(member.name);
+            failed.push(email);
           }
         }
         if (failed.length > 0) {
@@ -137,31 +158,45 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Add members (optional)
             </label>
-            <div className="flex max-h-40 flex-col gap-0.5 overflow-y-auto rounded-md bg-white px-2 py-1.5 shadow-sm ring-1 ring-inset ring-slate-300 dark:bg-white/5 dark:ring-white/10">
-              {availableUsers.length === 0 ? (
-                <p className="px-1 py-1 text-sm text-slate-400 dark:text-slate-500">
-                  No other users yet.
-                </p>
-              ) : (
-                availableUsers.map((candidate) => (
-                  <label
-                    key={candidate.id}
-                    className="flex items-center gap-2 rounded px-1 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/10"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={memberIds.includes(candidate.id)}
-                      onChange={(e) => toggleMember(candidate.id, e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-white/20 dark:accent-indigo-400"
-                    />
-                    <span>
-                      {candidate.name}{" "}
-                      <span className="text-slate-400 dark:text-slate-500">({candidate.email})</span>
-                    </span>
-                  </label>
-                ))
-              )}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Input
+                  id="board-member-email"
+                  type="email"
+                  placeholder="teammate@example.com"
+                  value={emailInput}
+                  onChange={(e) => {
+                    setEmailInput(e.target.value);
+                    setEmailError(undefined);
+                  }}
+                  onKeyDown={onEmailKeyDown}
+                  error={emailError}
+                />
+              </div>
+              <Button type="button" variant="secondary" onClick={addEmail}>
+                Add
+              </Button>
             </div>
+            {memberEmails.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {memberEmails.map((email) => (
+                  <span
+                    key={email}
+                    className="flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-xs font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => removeEmail(email)}
+                      aria-label={`Remove ${email}`}
+                      className="rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-slate-200"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="mt-2 flex justify-end gap-2">

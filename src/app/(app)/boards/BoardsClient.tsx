@@ -12,7 +12,6 @@ import { BoardDialog } from "@/components/BoardDialog";
 
 export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const [boards, setBoards] = useState(initialBoards);
   const [dialogBoard, setDialogBoard] = useState<Board | null | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -46,11 +45,9 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Your projects</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {isAdmin ? "Pick a project or create a new one." : "Projects you've been added to."}
-          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Pick a project or create a new one.</p>
         </div>
-        {isAdmin && <Button onClick={() => setDialogBoard(null)}>New project</Button>}
+        <Button onClick={() => setDialogBoard(null)}>New project</Button>
       </div>
 
       <ErrorBanner message={error} />
@@ -59,11 +56,9 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-200 py-24 text-center dark:border-white/10">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">No projects yet</p>
           <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
-            {isAdmin
-              ? "Create your first project to start organizing tasks into columns."
-              : "Ask an admin to add you to a project."}
+            Create your first project to start organizing tasks into columns.
           </p>
-          {isAdmin && <Button onClick={() => setDialogBoard(null)}>Create a project</Button>}
+          <Button onClick={() => setDialogBoard(null)}>Create a project</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -87,7 +82,7 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
                     </span>
                   )}
                 </div>
-                {isAdmin && (
+                {board.ownerId === user?.id && (
                   <div className="flex items-center opacity-0 transition group-hover:opacity-100">
                     <button
                       onClick={() => setDialogBoard(board)}

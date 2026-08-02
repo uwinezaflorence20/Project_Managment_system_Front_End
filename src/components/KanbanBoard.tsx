@@ -60,7 +60,7 @@ export function KanbanBoard({ board }: { board: Board }) {
   const { query } = useSearch();
   const socket = useSocket();
   const router = useRouter();
-  const isAdmin = user?.role === "admin";
+  const isOwner = board.ownerId === user?.id;
   const [columns, setColumns] = useState<BoardColumn[]>(board.columns ?? []);
   const [members, setMembers] = useState<BoardMember[]>(board.members ?? []);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -278,7 +278,9 @@ export function KanbanBoard({ board }: { board: Board }) {
     setError(null);
     try {
       const column = await createColumn(board.id, { title });
-      setColumns((prev) => [...prev, { ...column, tasks: [] }]);
+      setColumns((prev) =>
+        prev.some((c) => c.id === column.id) ? prev : [...prev, { ...column, tasks: [] }],
+      );
       setNewColumnTitle("");
       setIsAddingColumn(false);
     } catch (err) {
@@ -331,7 +333,11 @@ export function KanbanBoard({ board }: { board: Board }) {
     } else if (taskDialog.columnId) {
       const created = await createTask(board.id, taskDialog.columnId, input);
       setColumns((prev) =>
-        prev.map((c) => (c.id === taskDialog.columnId ? { ...c, tasks: [...c.tasks, created] } : c)),
+        prev.map((c) =>
+          c.id === taskDialog.columnId && !c.tasks.some((t) => t.id === created.id)
+            ? { ...c, tasks: [...c.tasks, created] }
+            : c,
+        ),
       );
     }
   }
@@ -372,7 +378,7 @@ export function KanbanBoard({ board }: { board: Board }) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {isAdmin && (
+          {isOwner && (
             <button
               onClick={() => setIsMembersOpen(true)}
               className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/10 dark:hover:bg-white/5"
@@ -479,7 +485,7 @@ export function KanbanBoard({ board }: { board: Board }) {
         onDelete={taskDialog.task ? handleTaskDelete : undefined}
       />
 
-      {isAdmin && (
+      {isOwner && (
         <BoardMembersDialog
           open={isMembersOpen}
           onClose={() => setIsMembersOpen(false)}
