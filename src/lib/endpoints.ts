@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type {
+  AdminBoardDetail,
   AdminBoardSummary,
   AdminStats,
   Board,
@@ -127,6 +128,10 @@ export function adminDeleteUser(userId: string) {
 
 export function adminListBoards() {
   return apiFetch<AdminBoardSummary[]>("/admin/boards");
+}
+
+export function adminGetBoardDetail(boardId: string) {
+  return apiFetch<AdminBoardDetail>(`/admin/boards/${boardId}`);
 }
 
 export function adminDeleteBoard(boardId: string) {

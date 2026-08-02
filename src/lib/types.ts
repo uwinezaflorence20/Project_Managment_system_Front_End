@@ -82,6 +82,8 @@ export interface AdminStats {
   totalAdmins: number;
   totalBoards: number;
   totalTasks: number;
+  totalCompletedTasks: number;
+  overallProgressPercent: number;
 }
 
 export interface AdminBoardSummary {
@@ -91,9 +93,38 @@ export interface AdminBoardSummary {
   ownerId: string;
   ownerName: string;
   ownerEmail: string;
+  memberCount: number;
   taskCount: number;
+  completedTaskCount: number;
+  progressPercent: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminMemberProgress {
+  userId: string;
+  name: string;
+  email: string;
+  isOwner: boolean;
+  assignedCount: number;
+  completedCount: number;
+  progressPercent: number;
+}
+
+export interface AdminBoardDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  ownerId: string;
+  ownerName: string;
+  ownerEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  columnCount: number;
+  taskCount: number;
+  completedTaskCount: number;
+  progressPercent: number;
+  memberProgress: AdminMemberProgress[];
 }
 
 export type NotificationType =
