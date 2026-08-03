@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-toastify";
 import type { User, UserRole } from "@/lib/types";
 import { adminDeleteUser, adminUpdateUserRole } from "@/lib/endpoints";
 import { ApiError } from "@/lib/api-error";
 import { Select } from "@/components/ui/Select";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function UsersClient({
@@ -16,37 +16,36 @@ export function UsersClient({
   initialUsers: User[];
 }) {
   const [users, setUsers] = useState(initialUsers);
-  const [error, setError] = useState<string | null>(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
   async function handleRoleChange(user: User, role: UserRole) {
     if (role === user.role) return;
-    setError(null);
     setPendingUserId(user.id);
     const previous = users;
     setUsers((list) => list.map((u) => (u.id === user.id ? { ...u, role } : u)));
     try {
       const updated = await adminUpdateUserRole(user.id, role);
       setUsers((list) => list.map((u) => (u.id === updated.id ? updated : u)));
+      toast.success(`${updated.name}'s role updated to ${updated.role}.`);
     } catch (err) {
       setUsers(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to update role.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to update role.");
     } finally {
       setPendingUserId(null);
     }
   }
 
   async function handleDeleteUser(user: User) {
-    setError(null);
     setPendingUserId(user.id);
     const previous = users;
     setUsers((list) => list.filter((u) => u.id !== user.id));
     try {
       await adminDeleteUser(user.id);
+      toast.success("User deleted.");
     } catch (err) {
       setUsers(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to delete user.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete user.");
     } finally {
       setPendingUserId(null);
       setDeleteTarget(null);
@@ -61,8 +60,6 @@ export function UsersClient({
           Manage every account on the platform — role and access.
         </p>
       </div>
-
-      <ErrorBanner message={error} />
 
       <div className="overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-slate-200 dark:bg-[#121130] dark:ring-white/10">
         <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-white/10">

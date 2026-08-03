@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import type { AdminBoardDetail, AdminBoardSummary } from "@/lib/types";
 import { adminDeleteBoard, adminGetBoardDetail, adminListBoards } from "@/lib/endpoints";
 import { ApiError } from "@/lib/api-error";
 import { Button } from "@/components/ui/Button";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BoardDialog } from "@/components/BoardDialog";
@@ -123,7 +123,6 @@ export function AdminBoardsClient({ initialBoards }: { initialBoards: AdminBoard
   const [boards, setBoards] = useState(initialBoards);
   const [boardDetails, setBoardDetails] = useState<Record<string, AdminBoardDetail>>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [pendingBoardId, setPendingBoardId] = useState<string | null>(null);
   const [viewingBoardId, setViewingBoardId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminBoardSummary | null>(null);
@@ -156,15 +155,15 @@ export function AdminBoardsClient({ initialBoards }: { initialBoards: AdminBoard
   }
 
   async function handleDeleteBoard(board: AdminBoardSummary) {
-    setError(null);
     setPendingBoardId(board.id);
     const previous = boards;
     setBoards((list) => list.filter((b) => b.id !== board.id));
     try {
       await adminDeleteBoard(board.id);
+      toast.success("Project deleted.");
     } catch (err) {
       setBoards(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to delete board.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete board.");
     } finally {
       setPendingBoardId(null);
       setDeleteTarget(null);
@@ -186,8 +185,6 @@ export function AdminBoardsClient({ initialBoards }: { initialBoards: AdminBoard
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>New project</Button>
       </div>
-
-      <ErrorBanner message={error} />
 
       {boards.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-200 py-24 text-center dark:border-white/10">

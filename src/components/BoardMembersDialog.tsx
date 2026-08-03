@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "react-toastify";
 import type { Board, BoardMember } from "@/lib/types";
 import { addMemberSchema } from "@/lib/validation";
 import { addBoardMember, removeBoardMember } from "@/lib/endpoints";
@@ -8,7 +9,6 @@ import { ApiError } from "@/lib/api-error";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface BoardMembersDialogProps {
@@ -28,7 +28,6 @@ export function BoardMembersDialog({
 }: BoardMembersDialogProps) {
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>();
-  const [formError, setFormError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<BoardMember | null>(null);
@@ -36,7 +35,6 @@ export function BoardMembersDialog({
   function handleClose() {
     setEmail("");
     setFieldError(undefined);
-    setFormError(null);
     onClose();
   }
 
@@ -48,14 +46,14 @@ export function BoardMembersDialog({
       return;
     }
     setFieldError(undefined);
-    setFormError(null);
     setIsAdding(true);
     try {
       const updated = await addBoardMember(board.id, parsed.data.email);
       onMembersChange(updated.members ?? []);
       setEmail("");
+      toast.success("Member added.");
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to add member.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to add member.");
     } finally {
       setIsAdding(false);
     }
@@ -63,12 +61,12 @@ export function BoardMembersDialog({
 
   async function handleRemove(member: BoardMember) {
     setRemovingId(member.id);
-    setFormError(null);
     try {
       const updated = await removeBoardMember(board.id, member.userId);
       onMembersChange(updated.members ?? []);
+      toast.success("Member removed.");
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to remove member.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to remove member.");
     } finally {
       setRemovingId(null);
       setRemoveTarget(null);
@@ -78,7 +76,6 @@ export function BoardMembersDialog({
   return (
     <Modal open={open} onClose={handleClose} title="Project members">
       <div className="flex flex-col gap-4">
-        <ErrorBanner message={formError} />
         <form onSubmit={handleAdd} className="flex items-end gap-2" noValidate>
           <div className="flex-1">
             <Input

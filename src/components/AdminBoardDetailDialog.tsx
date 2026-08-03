@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import type { AdminBoardDetail } from "@/lib/types";
 import { adminGetBoardDetail } from "@/lib/endpoints";
 import { ApiError } from "@/lib/api-error";
 import { Modal } from "@/components/ui/Modal";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export function AdminBoardDetailDialog({
   boardId,
@@ -17,7 +17,6 @@ export function AdminBoardDetailDialog({
   onClose: () => void;
 }) {
   const [detail, setDetail] = useState<AdminBoardDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -26,11 +25,10 @@ export function AdminBoardDetailDialog({
       return;
     }
     setIsLoading(true);
-    setError(null);
     adminGetBoardDetail(boardId)
       .then(setDetail)
       .catch((err) =>
-        setError(err instanceof ApiError ? err.message : "Failed to load project details."),
+        toast.error(err instanceof ApiError ? err.message : "Failed to load project details."),
       )
       .finally(() => setIsLoading(false));
   }, [boardId]);
@@ -38,8 +36,6 @@ export function AdminBoardDetailDialog({
   return (
     <Modal open={boardId !== null} onClose={onClose} title={detail?.title ?? "Project details"}>
       <div className="flex flex-col gap-4">
-        <ErrorBanner message={error} />
-
         {isLoading && (
           <div className="flex justify-center py-8">
             <Spinner className="h-5 w-5 text-slate-400" />

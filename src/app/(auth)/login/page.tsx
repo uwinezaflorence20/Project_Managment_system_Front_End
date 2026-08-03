@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "react-toastify";
 import { useAuth } from "@/lib/auth-context";
 import { loginSchema } from "@/lib/validation";
 import { ApiError } from "@/lib/api-error";
 import { AuthInput } from "@/components/AuthInput";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Spinner } from "@/components/ui/Spinner";
 
 const EmailIcon = (
@@ -40,12 +40,19 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("registered") === "1") {
+      toast.success("Account created. Sign in to continue.");
+    } else if (searchParams.get("reset") === "1") {
+      toast.success("Password reset. Sign in with your new password.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setFormError(null);
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
@@ -63,7 +70,7 @@ function LoginForm() {
       await login(parsed.data.email, parsed.data.password, remember);
       router.push(searchParams.get("callbackUrl") ?? "/dashboard");
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Sign in failed. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : "Sign in failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -74,12 +81,6 @@ function LoginForm() {
       <h1 className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">Welcome back</h1>
       <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">Sign in to continue to your projects.</p>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        <ErrorBanner message={formError} />
-        {searchParams.get("registered") === "1" && (
-          <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-            Account created. Sign in to continue.
-          </p>
-        )}
         <AuthInput
           id="email"
           type="email"
@@ -102,16 +103,24 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           error={fieldErrors.password}
         />
-        <label htmlFor="remember" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <input
-            id="remember"
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 bg-white accent-indigo-600 dark:border-white/20 dark:bg-white/5 dark:accent-cyan-400"
-          />
-          Remember me
-        </label>
+        <div className="flex items-center justify-between">
+          <label htmlFor="remember" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <input
+              id="remember"
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 bg-white accent-indigo-600 dark:border-white/20 dark:bg-white/5 dark:accent-cyan-400"
+            />
+            Remember me
+          </label>
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-cyan-400 dark:hover:text-cyan-300"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <button
           type="submit"
           disabled={isSubmitting}

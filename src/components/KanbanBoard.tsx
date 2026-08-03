@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import {
   DndContext,
   DragOverlay,
@@ -39,7 +40,7 @@ import { Column } from "@/components/Column";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskDialog } from "@/components/TaskDialog";
 import { BoardMembersDialog } from "@/components/BoardMembersDialog";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface TaskDialogState {
   open: boolean;
@@ -65,11 +66,11 @@ export function KanbanBoard({ board }: { board: Board }) {
   const [members, setMembers] = useState<BoardMember[]>(board.members ?? []);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [isSavingColumn, setIsSavingColumn] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [deleteColumnId, setDeleteColumnId] = useState<string | null>(null);
   const [taskDialog, setTaskDialog] = useState<TaskDialogState>({
     open: false,
     columnId: null,
@@ -212,12 +213,11 @@ export function KanbanBoard({ board }: { board: Board }) {
     const previous = columns;
     const reordered = arrayMove(columns, oldIndex, newIndex);
     setColumns(reordered);
-    setError(null);
     try {
       await reorderColumns(board.id, reordered.map((c) => c.id));
     } catch (err) {
       setColumns(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to reorder columns.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to reorder columns.");
     }
   }
 
@@ -259,12 +259,11 @@ export function KanbanBoard({ board }: { board: Board }) {
     }
 
     setColumns(next);
-    setError(null);
     try {
       await moveTask(activeTaskId, dstCol.id, finalIndex);
     } catch (err) {
       setColumns(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to move task.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to move task.");
     }
   }
 
@@ -275,7 +274,6 @@ export function KanbanBoard({ board }: { board: Board }) {
       return;
     }
     setIsSavingColumn(true);
-    setError(null);
     try {
       const column = await createColumn(board.id, { title });
       setColumns((prev) =>
@@ -283,8 +281,9 @@ export function KanbanBoard({ board }: { board: Board }) {
       );
       setNewColumnTitle("");
       setIsAddingColumn(false);
+      toast.success("Column added.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create column.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to create column.");
     } finally {
       setIsSavingColumn(false);
     }
@@ -297,21 +296,21 @@ export function KanbanBoard({ board }: { board: Board }) {
       await updateColumn(board.id, columnId, { title });
     } catch (err) {
       setColumns(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to rename column.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to rename column.");
     }
   }
 
   async function handleDeleteColumn(columnId: string) {
-    const column = columns.find((c) => c.id === columnId);
-    if (!column) return;
-    if (!confirm(`Delete "${column.title}"? Its tasks will be deleted too.`)) return;
     const previous = columns;
     setColumns((prev) => prev.filter((c) => c.id !== columnId));
     try {
       await deleteColumn(board.id, columnId);
+      toast.success("Column deleted.");
     } catch (err) {
       setColumns(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to delete column.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete column.");
+    } finally {
+      setDeleteColumnId(null);
     }
   }
 
@@ -330,6 +329,7 @@ export function KanbanBoard({ board }: { board: Board }) {
           tasks: c.tasks.map((t) => (t.id === updated.id ? updated : t)),
         })),
       );
+      toast.success("Task updated.");
     } else if (taskDialog.columnId) {
       const created = await createTask(board.id, taskDialog.columnId, input);
       setColumns((prev) =>
@@ -339,6 +339,7 @@ export function KanbanBoard({ board }: { board: Board }) {
             : c,
         ),
       );
+      toast.success("Task added.");
     }
   }
 
@@ -348,6 +349,7 @@ export function KanbanBoard({ board }: { board: Board }) {
     setColumns((prev) =>
       prev.map((c) => ({ ...c, tasks: c.tasks.filter((t) => t.id !== taskDialog.task!.id) })),
     );
+    toast.success("Task deleted.");
   }
 
   async function handleToggleTaskComplete(task: Task) {
@@ -363,7 +365,7 @@ export function KanbanBoard({ board }: { board: Board }) {
       await updateTask(task.id, { status: nextStatus });
     } catch (err) {
       setColumns(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to update task.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to update task.");
     }
   }
 
@@ -371,6 +373,7 @@ export function KanbanBoard({ board }: { board: Board }) {
     ? columns.flatMap((c) => c.tasks).find((t) => t.id === activeTaskId)
     : null;
   const activeColumn = activeColumnId ? columns.find((c) => c.id === activeColumnId) : null;
+  const columnPendingDelete = deleteColumnId ? columns.find((c) => c.id === deleteColumnId) : null;
 
   const visibleColumns = query.trim()
     ? columns.map((c) => ({
@@ -414,8 +417,6 @@ export function KanbanBoard({ board }: { board: Board }) {
         </div>
       </div>
 
-      <ErrorBanner message={error} />
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -432,7 +433,7 @@ export function KanbanBoard({ board }: { board: Board }) {
                 onTaskClick={(task) => setTaskDialog({ open: true, columnId: column.id, task })}
                 onToggleTaskComplete={handleToggleTaskComplete}
                 onRename={(title) => handleRenameColumn(column.id, title)}
-                onDelete={() => handleDeleteColumn(column.id)}
+                onDelete={() => setDeleteColumnId(column.id)}
               />
             ))}
           </SortableContext>
@@ -512,6 +513,14 @@ export function KanbanBoard({ board }: { board: Board }) {
           onMembersChange={setMembers}
         />
       )}
+
+      <ConfirmDialog
+        open={columnPendingDelete !== null}
+        title="Delete column"
+        message={`Delete "${columnPendingDelete?.title}"? Its tasks will be deleted too.`}
+        onConfirm={() => deleteColumnId && handleDeleteColumn(deleteColumnId)}
+        onCancel={() => setDeleteColumnId(null)}
+      />
     </div>
   );
 }

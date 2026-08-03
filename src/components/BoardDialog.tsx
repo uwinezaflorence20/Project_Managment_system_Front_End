@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { toast } from "react-toastify";
 import { useAuth } from "@/lib/auth-context";
 import type { Board } from "@/lib/types";
 import { boardSchema, addMemberSchema } from "@/lib/validation";
@@ -10,7 +11,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { TextArea } from "@/components/ui/TextArea";
 import { Button } from "@/components/ui/Button";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 interface BoardDialogProps {
   open: boolean;
@@ -28,7 +28,6 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
   const [emailInput, setEmailInput] = useState("");
   const [emailError, setEmailError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -39,7 +38,6 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
       setEmailInput("");
       setEmailError(undefined);
       setFieldErrors({});
-      setFormError(null);
     }
   }, [open, board]);
 
@@ -76,7 +74,6 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
 
   function reset() {
     setFieldErrors({});
-    setFormError(null);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -89,7 +86,6 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
       return;
     }
     setFieldErrors({});
-    setFormError(null);
     setIsSubmitting(true);
     try {
       let saved = board
@@ -106,15 +102,18 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
           }
         }
         if (failed.length > 0) {
-          alert(`Project created, but couldn't add: ${failed.join(", ")}. You can add them from the board's Members panel.`);
+          toast.error(
+            `Project created, but couldn't add: ${failed.join(", ")}. You can add them from the board's Members panel.`,
+          );
         }
       }
 
       onSaved(saved);
+      toast.success(isEditing ? "Project updated." : "Project created.");
       reset();
       onClose();
     } catch (err) {
-      setFormError(
+      toast.error(
         err instanceof ApiError
           ? err.message
           : `Failed to ${isEditing ? "update" : "create"} project.`,
@@ -134,7 +133,6 @@ export function BoardDialog({ open, board, onClose, onSaved }: BoardDialogProps)
       title={isEditing ? "Edit project" : "Create a project"}
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        <ErrorBanner message={formError} />
         <Input
           id="board-title"
           label="Title"

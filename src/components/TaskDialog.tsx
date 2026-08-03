@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "react-toastify";
 import type { Task, TaskPriority } from "@/lib/types";
 import { taskSchema } from "@/lib/validation";
 import { ApiError } from "@/lib/api-error";
@@ -9,7 +10,6 @@ import { Input } from "@/components/ui/Input";
 import { TextArea } from "@/components/ui/TextArea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface TaskDialogProps {
@@ -37,9 +37,9 @@ export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onD
     task?.assignees?.map((a) => a.userId) ?? [],
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   function resetToTask() {
     setTitle(task?.title ?? "");
@@ -48,7 +48,6 @@ export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onD
     setDueDate(task?.dueDate ? task.dueDate.slice(0, 10) : "");
     setAssigneeIds(task?.assignees?.map((a) => a.userId) ?? []);
     setFieldErrors({});
-    setFormError(null);
   }
 
   function toggleAssignee(id: string, checked: boolean) {
@@ -76,13 +75,12 @@ export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onD
       return;
     }
     setFieldErrors({});
-    setFormError(null);
     setIsSubmitting(true);
     try {
       await onSubmit(parsed.data);
       handleClose();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to save task.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to save task.");
     } finally {
       setIsSubmitting(false);
     }
@@ -90,22 +88,21 @@ export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onD
 
   async function handleDelete() {
     if (!onDelete) return;
-    if (!confirm("Delete this task?")) return;
     setIsDeleting(true);
     try {
       await onDelete();
       handleClose();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to delete task.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete task.");
     } finally {
       setIsDeleting(false);
+      setIsConfirmingDelete(false);
     }
   }
 
   return (
     <Modal open={open} onClose={handleClose} title={isEditing ? "Edit task" : "Add task"}>
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <ErrorBanner message={formError} />
         <Input
           id="task-title"
           label="Title"
@@ -169,7 +166,12 @@ export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onD
         </div>
         <div className="mt-2 flex items-center justify-between">
           {isEditing && onDelete ? (
-            <Button type="button" variant="danger" loading={isDeleting} onClick={handleDelete}>
+            <Button
+              type="button"
+              variant="danger"
+              loading={isDeleting}
+              onClick={() => setIsConfirmingDelete(true)}
+            >
               Delete
             </Button>
           ) : (
@@ -185,6 +187,15 @@ export function TaskDialog({ open, onClose, task, assigneeOptions, onSubmit, onD
           </div>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={isConfirmingDelete}
+        title="Delete task"
+        message="Delete this task?"
+        loading={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setIsConfirmingDelete(false)}
+      />
     </Modal>
   );
 }

@@ -18,6 +18,8 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
 }
@@ -68,6 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const forgotPassword = useCallback(async (email: string) => {
+    await apiFetch<void>("/auth/forgot-password", { method: "POST", body: { email } });
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    await apiFetch<void>("/auth/reset-password", { method: "POST", body: { token, password } });
+  }, []);
+
   const logout = useCallback(() => {
     clearTokenCookie();
     setUser(null);
@@ -75,7 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser: setUser }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, register, forgotPassword, resetPassword, logout, updateUser: setUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

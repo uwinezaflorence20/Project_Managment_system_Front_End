@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { toast } from "react-toastify";
 import type { Board } from "@/lib/types";
 import { deleteBoard } from "@/lib/endpoints";
 import { ApiError } from "@/lib/api-error";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/Button";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BoardDialog } from "@/components/BoardDialog";
 
@@ -17,18 +17,17 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
   const [dialogBoard, setDialogBoard] = useState<Board | null | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<Board | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleDelete(board: Board) {
-    setError(null);
     setDeletingId(board.id);
     const previous = boards;
     setBoards((b) => b.filter((x) => x.id !== board.id));
     try {
       await deleteBoard(board.id);
+      toast.success("Project deleted.");
     } catch (err) {
       setBoards(previous);
-      setError(err instanceof ApiError ? err.message : "Failed to delete project.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete project.");
     } finally {
       setDeletingId(null);
       setDeleteTarget(null);
@@ -51,8 +50,6 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
         </div>
         <Button onClick={() => setDialogBoard(null)}>New project</Button>
       </div>
-
-      <ErrorBanner message={error} />
 
       {boards.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-200 py-24 text-center dark:border-white/10">
