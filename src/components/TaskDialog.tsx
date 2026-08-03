@@ -10,6 +10,7 @@ import { TextArea } from "@/components/ui/TextArea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface TaskDialogProps {
   open: boolean;

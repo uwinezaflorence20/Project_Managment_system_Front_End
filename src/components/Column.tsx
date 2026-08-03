@@ -11,11 +11,19 @@ interface ColumnProps {
   column: BoardColumn;
   onAddTask: () => void;
   onTaskClick: (task: Task) => void;
+  onToggleTaskComplete: (task: Task) => void;
   onRename: (title: string) => void;
   onDelete: () => void;
 }
 
-export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: ColumnProps) {
+export function Column({
+  column,
+  onAddTask,
+  onTaskClick,
+  onToggleTaskComplete,
+  onRename,
+  onDelete,
+}: ColumnProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(column.title);
 
@@ -98,7 +106,12 @@ export function Column({ column, onAddTask, onTaskClick, onRename, onDelete }: C
       <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
         <div className="flex min-h-[2rem] flex-col gap-2">
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onClick={() => onTaskClick(task)}
+              onToggleComplete={() => onToggleTaskComplete(task)}
+            />
           ))}
         </div>
       </SortableContext>

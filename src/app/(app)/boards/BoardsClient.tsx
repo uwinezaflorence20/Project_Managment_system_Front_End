@@ -8,17 +8,18 @@ import { ApiError } from "@/lib/api-error";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BoardDialog } from "@/components/BoardDialog";
 
 export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
   const { user } = useAuth();
   const [boards, setBoards] = useState(initialBoards);
   const [dialogBoard, setDialogBoard] = useState<Board | null | undefined>(undefined);
+  const [deleteTarget, setDeleteTarget] = useState<Board | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete(board: Board) {
-    if (!confirm(`Delete "${board.title}"? This removes all its columns and tasks.`)) return;
     setError(null);
     setDeletingId(board.id);
     const previous = boards;
@@ -30,6 +31,7 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
       setError(err instanceof ApiError ? err.message : "Failed to delete project.");
     } finally {
       setDeletingId(null);
+      setDeleteTarget(null);
     }
   }
 
@@ -99,7 +101,7 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
                       </svg>
                     </button>
                     <button
-                      onClick={() => handleDelete(board)}
+                      onClick={() => setDeleteTarget(board)}
                       disabled={deletingId === board.id}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-slate-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                       aria-label={`Delete ${board.title}`}
@@ -126,6 +128,15 @@ export function BoardsClient({ initialBoards }: { initialBoards: Board[] }) {
         board={dialogBoard}
         onClose={() => setDialogBoard(undefined)}
         onSaved={handleSaved}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete project"
+        message={`Delete "${deleteTarget?.title}"? This removes all its columns and tasks.`}
+        loading={deletingId === deleteTarget?.id}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

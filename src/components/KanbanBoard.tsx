@@ -350,6 +350,23 @@ export function KanbanBoard({ board }: { board: Board }) {
     );
   }
 
+  async function handleToggleTaskComplete(task: Task) {
+    const nextStatus = task.status === "done" ? "todo" : "done";
+    const previous = columns;
+    setColumns((prev) =>
+      prev.map((c) => ({
+        ...c,
+        tasks: c.tasks.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)),
+      })),
+    );
+    try {
+      await updateTask(task.id, { status: nextStatus });
+    } catch (err) {
+      setColumns(previous);
+      setError(err instanceof ApiError ? err.message : "Failed to update task.");
+    }
+  }
+
   const activeTask = activeTaskId
     ? columns.flatMap((c) => c.tasks).find((t) => t.id === activeTaskId)
     : null;
@@ -413,6 +430,7 @@ export function KanbanBoard({ board }: { board: Board }) {
                 column={column}
                 onAddTask={() => setTaskDialog({ open: true, columnId: column.id, task: null })}
                 onTaskClick={(task) => setTaskDialog({ open: true, columnId: column.id, task })}
+                onToggleTaskComplete={handleToggleTaskComplete}
                 onRename={(title) => handleRenameColumn(column.id, title)}
                 onDelete={() => handleDeleteColumn(column.id)}
               />

@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface BoardMembersDialogProps {
   open: boolean;
@@ -30,6 +31,7 @@ export function BoardMembersDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<BoardMember | null>(null);
 
   function handleClose() {
     setEmail("");
@@ -60,7 +62,6 @@ export function BoardMembersDialog({
   }
 
   async function handleRemove(member: BoardMember) {
-    if (!confirm(`Remove ${member.user.name} from this project?`)) return;
     setRemovingId(member.id);
     setFormError(null);
     try {
@@ -70,6 +71,7 @@ export function BoardMembersDialog({
       setFormError(err instanceof ApiError ? err.message : "Failed to remove member.");
     } finally {
       setRemovingId(null);
+      setRemoveTarget(null);
     }
   }
 
@@ -117,7 +119,7 @@ export function BoardMembersDialog({
                   <p className="text-xs text-slate-500 dark:text-slate-400">{member.user.email}</p>
                 </div>
                 <button
-                  onClick={() => handleRemove(member)}
+                  onClick={() => setRemoveTarget(member)}
                   disabled={removingId === member.id}
                   className="text-sm font-medium text-red-600 hover:text-red-500 disabled:opacity-50 dark:text-red-400"
                 >
@@ -134,6 +136,16 @@ export function BoardMembersDialog({
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        title="Remove member"
+        message={`Remove ${removeTarget?.user.name} from this project?`}
+        confirmLabel="Remove"
+        loading={removingId === removeTarget?.id}
+        onConfirm={() => removeTarget && handleRemove(removeTarget)}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </Modal>
   );
 }

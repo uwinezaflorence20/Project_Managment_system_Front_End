@@ -84,6 +84,7 @@ export function updateTask(
     title?: string;
     description?: string;
     priority?: string;
+    status?: string;
     dueDate?: string;
     assigneeIds?: string[];
   },

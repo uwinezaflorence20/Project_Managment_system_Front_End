@@ -10,7 +10,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/boards") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/settings") ||
-    pathname.startsWith("/admin");
+    pathname.startsWith("/users") ||
+    pathname.startsWith("/team");
 
   if (isProtectedRoute && !hasToken) {
     const loginUrl = new URL("/login", request.url);
@@ -22,5 +23,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/boards/:path*", "/dashboard/:path*", "/settings/:path*", "/admin/:path*"],
+  matcher: ["/boards/:path*", "/dashboard/:path*", "/settings/:path*", "/users/:path*", "/team/:path*"],
 };

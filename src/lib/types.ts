@@ -1,4 +1,5 @@
 export type TaskPriority = "low" | "medium" | "high";
+export type TaskStatus = "todo" | "in_progress" | "review" | "done";
 export type UserRole = "admin" | "user";
 
 export interface User {
@@ -29,6 +30,7 @@ export interface Task {
   title: string;
   description?: string | null;
   priority: TaskPriority;
+  status: TaskStatus;
   order: number;
   columnId: string;
   boardId: string;

@@ -8,6 +8,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 interface TaskCardProps {
   task: Task;
   onClick: () => void;
+  onToggleComplete?: () => void;
   dragOverlay?: boolean;
 }
 
@@ -20,7 +21,7 @@ function initialsFor(name: string) {
     .toUpperCase();
 }
 
-export function TaskCard({ task, onClick, dragOverlay }: TaskCardProps) {
+export function TaskCard({ task, onClick, onToggleComplete, dragOverlay }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "Task", columnId: task.columnId },
@@ -32,6 +33,7 @@ export function TaskCard({ task, onClick, dragOverlay }: TaskCardProps) {
   };
 
   const assignees = task.assignees ?? [];
+  const isDone = task.status === "done";
 
   return (
     <div
@@ -44,7 +46,36 @@ export function TaskCard({ task, onClick, dragOverlay }: TaskCardProps) {
         isDragging ? "opacity-40" : ""
       } ${dragOverlay ? "rotate-2 shadow-lg" : ""}`}
     >
-      <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{task.title}</p>
+      <div className="flex items-start gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleComplete?.();
+          }}
+          aria-label={isDone ? "Mark incomplete" : "Mark complete"}
+          aria-pressed={isDone}
+          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition ${
+            isDone
+              ? "border-indigo-600 bg-indigo-600 text-white dark:border-indigo-400 dark:bg-indigo-400"
+              : "border-slate-300 hover:border-indigo-400 dark:border-white/20 dark:hover:border-indigo-400"
+          }`}
+        >
+          {isDone && (
+            <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+        <p
+          className={`text-sm font-medium ${
+            isDone
+              ? "text-slate-400 line-through dark:text-slate-500"
+              : "text-slate-800 dark:text-slate-100"
+          }`}
+        >
+          {task.title}
+        </p>
+      </div>
       {task.description && (
         <p className="line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{task.description}</p>
       )}
